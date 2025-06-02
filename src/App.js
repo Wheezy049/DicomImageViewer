@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ScanContextProvider } from "./context/ScanContext";
@@ -15,14 +15,17 @@ function App() {
     <ScanContextProvider>
       <div className="App">
         <Routes>
-          {/* <Route 
-              path="/" 
-              element={
-                <ProtectedRoute>
-                  <DICOMViewer />
-                </ProtectedRoute>
-              } 
-            /> */}
+          {/* Root path - redirect to protected home */}
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <DICOMViewer />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Public routes */}
           <Route
             path="/signin"
             element={
@@ -39,6 +42,8 @@ function App() {
               </PublicRoute>
             }
           />
+          
+          {/* Protected routes */}
           <Route
             path="/home"
             element={
@@ -55,8 +60,9 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          <Route path="*" element={<DICOMViewer to="/" replace />} />
+          
+          {/* Catch all unknown routes - redirect to root */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
         <ToastContainer
