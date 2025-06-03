@@ -14,6 +14,7 @@ function ResultPage() {
     setScanResult,
     setImages,
     setDicomMetadata,
+    refreshScans,
   } = useScanContext();
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
@@ -50,9 +51,11 @@ function ResultPage() {
       clinical: "",
       date: "",
     });
-    setScanResult([]);
+    setScanResult(null);
     setImages([]);
     setDicomMetadata([]);
+    
+    refreshScans();
     navigate("/home");
   };
 
@@ -114,19 +117,19 @@ function ResultPage() {
               </div>
             </main>
             {/* Right Sidebar */}
-            <aside className="bg-white p-4 rounded shadow min-h-[calc(100vh-7rem)]">
-              <h2 className="font-semibold mb-2">Result</h2>
-              {scanResult.map((result, index) => (
-                <div key={index}>
-                  <p className=" break-words">
-                    The prediction for the image scan is {result.prediction}{" "}
-                    with a confidence of{" "}
-                    {Math.round(result.confidence * 100).toFixed(2)}%. The
-                    uncertainty is {result.uncertainty.toFixed(5)}.
-                  </p>
-                </div>
-              ))}
-            </aside>
+           <aside className="bg-white p-4 rounded shadow min-h-[calc(100vh-7rem)]">
+  <h2 className="font-semibold mb-2">Result</h2>
+  {scanResult && typeof scanResult === 'object' && !Array.isArray(scanResult) && scanResult.prediction && (
+    <div>
+      <p className="break-words">
+        The prediction for the image scan is {scanResult.prediction}{" "}
+        with a confidence of{" "}
+        {Math.round(scanResult.confidence * 100).toFixed(2)}%. The
+        uncertainty is {scanResult.uncertainty.toFixed(5)}.
+      </p>
+    </div>
+  )}
+</aside>
           </div>
         </div>
       </div>

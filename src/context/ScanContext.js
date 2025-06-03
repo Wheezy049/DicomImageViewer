@@ -65,7 +65,7 @@ export function ScanContextProvider({ children }) {
         console.error("Error fetching scans:", error.message);
         setScans([]);
       } else {
-        console.log("Fetched scans:", data);
+        // console.log("Fetched scans:", data);
 
         // Process JSONB data - Supabase automatically parses JSONB fields,
         // but we need to ensure the scan.result field is properly handled

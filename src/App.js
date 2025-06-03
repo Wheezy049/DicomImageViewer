@@ -53,7 +53,7 @@ function App() {
             }
           />
           <Route
-            path="/results"
+            path="/result"
             element={
               <ProtectedRoute>
                 <ResultPage />

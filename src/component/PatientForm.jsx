@@ -254,7 +254,7 @@ function PatientForm({ setIsPopup }) {
       if (insertError) throw new Error("Failed to save scan record");
 
       // Step 4: Update state and navigate
-      setScanResult((prev) => [...prev, result]);
+      setScanResult(result);
       toast.dismiss("scan-progress");
       toast.success("Scan analysis completed successfully!");
       navigate("/result");
