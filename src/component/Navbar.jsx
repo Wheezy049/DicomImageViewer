@@ -67,7 +67,8 @@ function Navbar() {
         }`}
       >
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-          <Link to="/">
+          <Link to="/" >
+           {/* <img src="/image/logo.png" alt="Logo" className="w-10 h-10" /> */}
             <h1 className="text-4xl font-semibold cursor-pointer">EZCXR</h1>
           </Link>
 
@@ -83,12 +84,13 @@ function Navbar() {
 
   return (
     <div
-      className={`fixed top-0 w-full z-50 px-10 py-5 text-white transition-shadow duration-300 ${
+      className={`fixed top-0 w-full z-50 px-0 py-5 text-white transition-shadow duration-300 ${
         scrolled ? "bg-[#0A2342] shadow-lg" : "bg-[#0A2342]"
       }`}
     >
       <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-        <Link to="/">
+        <Link to="/" >
+          {/* <img src="/image/logo.png" alt="Logo" className="w-10 h-10" /> */}
           <h1 className="text-4xl font-semibold cursor-pointer">EZCXR</h1>
         </Link>
 
