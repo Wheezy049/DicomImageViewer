@@ -325,8 +325,26 @@ function PatientForm({ setIsPopup }) {
     setIsDragging(false);
 
     const files = Array.from(e.dataTransfer.files || []);
-    if (files.length) {
+
+    if (files.length === 0) {
+      toast.warning("No files were dropped");
+      return;
+    }
+
+    try {
+      // Clear existing data before processing new files
+      clearAllData();
+
+      // Show loading state
+      setLoading(true);
+
       const extractedFiles = await extractFiles(files);
+
+      if (extractedFiles.length === 0) {
+        toast.warning("No valid files found");
+        setLoading(false);
+        return;
+      }
 
       const dcmFiles = extractedFiles.filter((file) =>
         file.name.toLowerCase().endsWith(".dcm")
@@ -345,11 +363,52 @@ function PatientForm({ setIsPopup }) {
       });
 
       if (dcmFiles.length > 0) {
-        await prepareDicomFiles(dcmFiles); // ✅ Use prepareDicomFiles instead
+        console.log(`Processing ${dcmFiles.length} DICOM files`);
+        await prepareDicomFiles(dcmFiles);
       } else if (imageFiles.length > 0) {
+        console.log(`Processing ${imageFiles.length} image files`);
         await loadRegularImages(imageFiles);
         setShowImagePreview(true);
+      } else {
+        toast.warning(
+          "No supported file formats found. Please upload DICOM (.dcm) files, images, or ZIP files containing them."
+        );
       }
+    } catch (error) {
+      console.error("Error processing dropped files:", error);
+      toast.error("Error processing files: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Also improve the drag handlers for better UX
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only set dragging to false if we're leaving the drop zone entirely
+    // This prevents flickering when dragging over child elements
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDragging(false);
     }
   };
 
@@ -608,14 +667,9 @@ function PatientForm({ setIsPopup }) {
           {!showImagePreview ? (
             <div
               onClick={!isImageLoaded ? handleBrowseClick : undefined}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-              }}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`border-dashed border-2 ${
                 isDragging ? "border-blue-500" : "border-gray-300"
@@ -625,8 +679,8 @@ function PatientForm({ setIsPopup }) {
             >
               {!isImageLoaded && (
                 <p className="text-sm text-gray-600">
-                  Drag and drop a DICOM (.dcm) file or image here, or click to
-                  browse
+                  Drag and drop a DICOM (.dcm) file, ZIP archive, or image here,
+                  or click to browse
                 </p>
               )}
             </div>

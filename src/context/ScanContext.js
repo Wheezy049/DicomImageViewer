@@ -134,8 +134,8 @@ export function ScanContextProvider({ children }) {
         isAuthenticated,
         formData,
         setFormData,
-        refreshScans, // Add this function to context
-        fetchRecentScans, // Also expose the fetch function
+        refreshScans,
+        fetchRecentScans,
       }}
     >
       {children}
