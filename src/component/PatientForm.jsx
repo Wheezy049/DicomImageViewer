@@ -203,34 +203,206 @@ function PatientForm({ setIsPopup }) {
     }
   };
 
+  const isSupportedFileType = (filename) => {
+    const ext = filename.toLowerCase();
+
+    // DICOM files
+    if (ext.endsWith(".dcm")) return "dicom";
+
+    // Image files
+    if (ext.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) return "image";
+
+    return null;
+  };
+
+  // Enhanced extractFiles function with validation
   const extractFiles = async (files) => {
-    const all = [];
+    const allExtractedFiles = [];
+    const zipValidationResults = [];
+
+    for (const file of files) {
+      if (file.name.toLowerCase().endsWith(".zip")) {
+        try {
+          console.log(`📦 Analyzing ZIP file: ${file.name}`);
+
+          // First, load and analyze the ZIP contents
+          const zip = await JSZip.loadAsync(file);
+          const zipContents = Object.keys(zip.files);
+
+          // Filter and categorize files in the ZIP
+          const supportedFiles = [];
+          const unsupportedFiles = [];
+
+          for (const filename of zipContents) {
+            const zipFile = zip.files[filename];
+
+            // Skip directories
+            if (zipFile.dir) continue;
+
+            const fileType = isSupportedFileType(filename);
+            if (fileType) {
+              supportedFiles.push({ filename, type: fileType });
+            } else {
+              // Only add to unsupported if it's not a common system file
+              if (
+                !filename.startsWith("__MACOSX/") &&
+                !filename.startsWith(".DS_Store") &&
+                !filename.endsWith(".txt")
+              ) {
+                unsupportedFiles.push(filename);
+              }
+            }
+          }
+
+          // Log analysis results
+          console.log(`📊 ZIP Analysis for ${file.name}:`);
+          console.log(`  ✅ Supported files: ${supportedFiles.length}`);
+          console.log(`  ❌ Unsupported files: ${unsupportedFiles.length}`);
+
+          if (supportedFiles.length === 0) {
+            toast.warning(
+              `ZIP file "${file.name}" contains no supported files (DICOM or images)`
+            );
+            zipValidationResults.push({
+              filename: file.name,
+              status: "no_supported_files",
+              supportedCount: 0,
+              unsupportedCount: unsupportedFiles.length,
+            });
+            continue;
+          }
+
+          // Show user what was found
+          const dicomCount = supportedFiles.filter(
+            (f) => f.type === "dicom"
+          ).length;
+          const imageCount = supportedFiles.filter(
+            (f) => f.type === "image"
+          ).length;
+
+          let message = `Found in "${file.name}": `;
+          if (dicomCount > 0) message += `${dicomCount} DICOM file(s)`;
+          if (imageCount > 0) {
+            if (dicomCount > 0) message += `, `;
+            message += `${imageCount} image file(s)`;
+          }
+          if (unsupportedFiles.length > 0) {
+            message += ` (${unsupportedFiles.length} unsupported files skipped)`;
+          }
+
+          toast.info(message);
+
+          // Extract only the supported files
+          for (const { filename, type } of supportedFiles) {
+            try {
+              const zipFile = zip.files[filename];
+              const content = await zipFile.async("uint8array");
+              const blob = new Blob([content]);
+              const extractedFile = new File([blob], filename);
+              allExtractedFiles.push(extractedFile);
+
+              console.log(`  ✅ Extracted: ${filename} (${type})`);
+            } catch (extractError) {
+              console.error(
+                `  ❌ Failed to extract: ${filename}`,
+                extractError
+              );
+              toast.error(`Failed to extract "${filename}" from ZIP`);
+            }
+          }
+
+          zipValidationResults.push({
+            filename: file.name,
+            status: "success",
+            supportedCount: supportedFiles.length,
+            unsupportedCount: unsupportedFiles.length,
+            extractedCount: supportedFiles.length,
+          });
+        } catch (error) {
+          console.error("❌ Error processing ZIP file:", file.name, error);
+          toast.error(`Failed to process ZIP file: ${file.name}`);
+          zipValidationResults.push({
+            filename: file.name,
+            status: "error",
+            error: error.message,
+          });
+        }
+      } else {
+        // Handle non-ZIP files
+        const fileType = isSupportedFileType(file.name);
+        if (fileType) {
+          allExtractedFiles.push(file);
+          console.log(`✅ Added file: ${file.name} (${fileType})`);
+        } else {
+          console.log(`⏭️ Skipped unsupported file: ${file.name}`);
+          toast.warning(`Skipped unsupported file: ${file.name}`);
+        }
+      }
+    }
+
+    // Summary report
+    if (zipValidationResults.length > 0) {
+      console.log("📋 ZIP Processing Summary:", zipValidationResults);
+    }
+
+    console.log(
+      `🎯 Total files ready for processing: ${allExtractedFiles.length}`
+    );
+
+    return allExtractedFiles;
+  };
+
+  // Enhanced file validation function that can be used before processing
+  const validateFiles = async (files) => {
+    const validation = {
+      valid: [],
+      invalid: [],
+      zips: [],
+      totalSupported: 0,
+    };
+
     for (const file of files) {
       if (file.name.toLowerCase().endsWith(".zip")) {
         try {
           const zip = await JSZip.loadAsync(file);
-          for (const filename of Object.keys(zip.files)) {
-            const zipFile = zip.files[filename];
-            if (
-              !zipFile.dir &&
-              (filename.toLowerCase().endsWith(".dcm") ||
-                filename.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/))
-            ) {
-              const content = await zipFile.async("uint8array");
-              const blob = new Blob([content]);
-              const extractedFile = new File([blob], filename);
-              all.push(extractedFile);
+          const zipContents = Object.keys(zip.files);
+          let supportedInZip = 0;
+
+          for (const filename of zipContents) {
+            if (!zip.files[filename].dir && isSupportedFileType(filename)) {
+              supportedInZip++;
             }
           }
+
+          validation.zips.push({
+            name: file.name,
+            supportedFiles: supportedInZip,
+            totalFiles: zipContents.filter((name) => !zip.files[name].dir)
+              .length,
+          });
+
+          validation.totalSupported += supportedInZip;
         } catch (error) {
-          console.error("Error extracting ZIP file:", error);
-          toast.error(`Failed to extract ZIP file: ${file.name}`);
+          validation.invalid.push({
+            name: file.name,
+            reason: "Invalid ZIP file",
+          });
         }
       } else {
-        all.push(file);
+        const fileType = isSupportedFileType(file.name);
+        if (fileType) {
+          validation.valid.push({ name: file.name, type: fileType });
+          validation.totalSupported++;
+        } else {
+          validation.invalid.push({
+            name: file.name,
+            reason: "Unsupported file type",
+          });
+        }
       }
     }
-    return all;
+
+    return validation;
   };
 
   const clearAllData = () => {
@@ -289,9 +461,33 @@ function PatientForm({ setIsPopup }) {
     clearAllData();
     setIsPopup(false);
   };
+
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length) {
+
+    if (files.length === 0) return;
+
+    try {
+      setLoading(true);
+
+      // Validate files first
+      const validation = await validateFiles(files);
+
+      if (validation.totalSupported === 0) {
+        toast.error(
+          "No supported files selected. Please choose DICOM (.dcm) files, images, or ZIP files containing them."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Show preview of what will be processed
+      if (validation.invalid.length > 0) {
+        const invalidNames = validation.invalid.map((f) => f.name).join(", ");
+        toast.warning(`Skipping unsupported files: ${invalidNames}`);
+      }
+
+      // Continue with extraction and processing
       const extractedFiles = await extractFiles(files);
 
       const dcmFiles = extractedFiles.filter((file) =>
@@ -300,22 +496,20 @@ function PatientForm({ setIsPopup }) {
 
       const imageFiles = extractedFiles.filter((file) => {
         const ext = file.name.toLowerCase();
-        return (
-          ext.endsWith(".jpg") ||
-          ext.endsWith(".jpeg") ||
-          ext.endsWith(".png") ||
-          ext.endsWith(".gif") ||
-          ext.endsWith(".bmp") ||
-          ext.endsWith(".webp")
-        );
+        return ext.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
       });
 
       if (dcmFiles.length > 0) {
-        await prepareDicomFiles(dcmFiles); // ✅ Use prepareDicomFiles instead
+        await prepareDicomFiles(dcmFiles);
       } else if (imageFiles.length > 0) {
         await loadRegularImages(imageFiles);
         setShowImagePreview(true);
       }
+    } catch (error) {
+      console.error("Error processing selected files:", error);
+      toast.error("Error processing files: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -338,41 +532,69 @@ function PatientForm({ setIsPopup }) {
       // Show loading state
       setLoading(true);
 
-      const extractedFiles = await extractFiles(files);
+      // First, validate what we're dealing with
+      console.log("🔍 Validating dropped files...");
+      const validation = await validateFiles(files);
 
-      if (extractedFiles.length === 0) {
-        toast.warning("No valid files found");
+      // Show validation summary
+      if (validation.totalSupported === 0) {
+        toast.error(
+          "No supported files found. Please drop DICOM (.dcm) files, images (jpg, png, etc.), or ZIP files containing them."
+        );
         setLoading(false);
         return;
       }
 
+      // Show what we found
+      let summary = `Found ${validation.totalSupported} supported file(s): `;
+      if (validation.valid.length > 0) {
+        const dicomCount = validation.valid.filter(
+          (f) => f.type === "dicom"
+        ).length;
+        const imageCount = validation.valid.filter(
+          (f) => f.type === "image"
+        ).length;
+        if (dicomCount > 0) summary += `${dicomCount} DICOM`;
+        if (imageCount > 0) {
+          if (dicomCount > 0) summary += ", ";
+          summary += `${imageCount} image(s)`;
+        }
+      }
+      if (validation.zips.length > 0) {
+        summary += ` + ${validation.zips.length} ZIP file(s)`;
+      }
+
+      toast.info(summary);
+
+      // Now extract and process the files
+      const extractedFiles = await extractFiles(files);
+
+      if (extractedFiles.length === 0) {
+        toast.warning("No files could be processed");
+        setLoading(false);
+        return;
+      }
+
+      // Categorize extracted files
       const dcmFiles = extractedFiles.filter((file) =>
         file.name.toLowerCase().endsWith(".dcm")
       );
 
       const imageFiles = extractedFiles.filter((file) => {
         const ext = file.name.toLowerCase();
-        return (
-          ext.endsWith(".jpg") ||
-          ext.endsWith(".jpeg") ||
-          ext.endsWith(".png") ||
-          ext.endsWith(".gif") ||
-          ext.endsWith(".bmp") ||
-          ext.endsWith(".webp")
-        );
+        return ext.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
       });
 
+      // Process files based on type
       if (dcmFiles.length > 0) {
-        console.log(`Processing ${dcmFiles.length} DICOM files`);
+        console.log(`🏥 Processing ${dcmFiles.length} DICOM files`);
         await prepareDicomFiles(dcmFiles);
+        toast.success(`Successfully loaded ${dcmFiles.length} DICOM file(s)`);
       } else if (imageFiles.length > 0) {
-        console.log(`Processing ${imageFiles.length} image files`);
+        console.log(`🖼️ Processing ${imageFiles.length} image files`);
         await loadRegularImages(imageFiles);
         setShowImagePreview(true);
-      } else {
-        toast.warning(
-          "No supported file formats found. Please upload DICOM (.dcm) files, images, or ZIP files containing them."
-        );
+        toast.success(`Successfully loaded ${imageFiles.length} image file(s)`);
       }
     } catch (error) {
       console.error("Error processing dropped files:", error);
