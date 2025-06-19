@@ -55,20 +55,16 @@ function PatientForm({ setIsPopup }) {
   const inputRef = useRef(null);
 
   const prepareDicomFiles = async (files) => {
-    console.log("🔄 Preparing DICOM files:", files.length);
 
     const metadataList = [];
     const imageIds = [];
 
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith(".dcm")) {
-        console.log("⏭️ Skipping non-DICOM file:", file.name);
         continue;
       }
 
       try {
-        console.log("📁 Processing DICOM file:", file.name);
-
         const imageId =
           cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
         console.log("🆔 Generated imageId:", imageId);
@@ -86,7 +82,6 @@ function PatientForm({ setIsPopup }) {
           fileName: file.name,
         };
 
-        console.log("📊 Extracted metadata:", metadata);
         metadataList.push(metadata);
 
         setFormData((prev) => ({
@@ -112,17 +107,14 @@ function PatientForm({ setIsPopup }) {
     }
 
     if (imageIds.length > 0) {
-      console.log("🎯 Setting DICOM state:", imageIds);
-
       // Set the state to show DICOM preview
       setImages(imageIds);
       setDicomMetadata(metadataList);
       setIsDicomImage(true);
       setIsImageLoaded(true);
       setCurrentIndex(0);
-      setShowImagePreview(true); // ✅ This will render the div with divRef
+      setShowImagePreview(true);
 
-      console.log("✅ DICOM state updated, preview will show");
     }
   };
 
@@ -141,35 +133,22 @@ function PatientForm({ setIsPopup }) {
       if (isDicomImage && images.length > 0 && divRef.current) {
         try {
           const imageId = images[currentIndex];
-          console.log("🔍 Attempting to load DICOM image:", imageId);
-
           // Ensure element is enabled
           let enabledElement;
           try {
             enabledElement = cornerstone.getEnabledElement(divRef.current);
-            console.log("✅ Element already enabled");
           } catch (error) {
-            console.log("🔧 Enabling cornerstone element...");
             cornerstone.enable(divRef.current);
-            console.log("✅ Element enabled successfully");
           }
 
-          console.log("📥 Loading image with cornerstone...");
           const image = await cornerstone.loadImage(imageId);
-          console.log("✅ DICOM image loaded:", {
-            width: image.width,
-            height: image.height,
-          });
-
-          console.log("🖼️ Displaying image...");
           cornerstone.displayImage(divRef.current, image);
-          console.log("✅ DICOM image displayed successfully!");
         } catch (error) {
           console.error("❌ Error in DICOM display:", error);
           toast.error("Error displaying DICOM image: " + error.message);
         }
       } else if (isDicomImage && images.length > 0 && !divRef.current) {
-        console.log("⏳ Waiting for divRef to be available...");
+
       }
     };
 
@@ -193,8 +172,7 @@ function PatientForm({ setIsPopup }) {
     });
 
     if (imageFiles.length > 0) {
-      console.log("Loading regular images:", imageFiles);
-      // Ensure all are File or Blob before setting
+            // Ensure all are File or Blob before setting
       const validFiles = imageFiles.filter((f) => f instanceof Blob);
       setRegularImages(validFiles);
       setIsDicomImage(false);
@@ -223,8 +201,6 @@ function PatientForm({ setIsPopup }) {
     for (const file of files) {
       if (file.name.toLowerCase().endsWith(".zip")) {
         try {
-          console.log(`📦 Analyzing ZIP file: ${file.name}`);
-
           // First, load and analyze the ZIP contents
           const zip = await JSZip.loadAsync(file);
           const zipContents = Object.keys(zip.files);
@@ -253,11 +229,6 @@ function PatientForm({ setIsPopup }) {
               }
             }
           }
-
-          // Log analysis results
-          console.log(`📊 ZIP Analysis for ${file.name}:`);
-          console.log(`  ✅ Supported files: ${supportedFiles.length}`);
-          console.log(`  ❌ Unsupported files: ${unsupportedFiles.length}`);
 
           if (supportedFiles.length === 0) {
             toast.warning(
@@ -301,7 +272,6 @@ function PatientForm({ setIsPopup }) {
               const extractedFile = new File([blob], filename);
               allExtractedFiles.push(extractedFile);
 
-              console.log(`  ✅ Extracted: ${filename} (${type})`);
             } catch (extractError) {
               console.error(
                 `  ❌ Failed to extract: ${filename}`,
@@ -332,22 +302,11 @@ function PatientForm({ setIsPopup }) {
         const fileType = isSupportedFileType(file.name);
         if (fileType) {
           allExtractedFiles.push(file);
-          console.log(`✅ Added file: ${file.name} (${fileType})`);
         } else {
-          console.log(`⏭️ Skipped unsupported file: ${file.name}`);
           toast.warning(`Skipped unsupported file: ${file.name}`);
         }
       }
     }
-
-    // Summary report
-    if (zipValidationResults.length > 0) {
-      console.log("📋 ZIP Processing Summary:", zipValidationResults);
-    }
-
-    console.log(
-      `🎯 Total files ready for processing: ${allExtractedFiles.length}`
-    );
 
     return allExtractedFiles;
   };
@@ -703,7 +662,7 @@ function PatientForm({ setIsPopup }) {
 
       const formPayload = new FormData();
       extractedFiles.forEach((file) => {
-        formPayload.append("files", file);
+        formPayload.append("file", file);
       });
       const response = await fetch(`${API_URL}/predict`, {
         method: "POST",

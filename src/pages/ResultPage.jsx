@@ -18,30 +18,26 @@ function ResultPage() {
   } = useScanContext();
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
-
   const divRef = useRef(null);
 
   useEffect(() => {
-    if (divRef.current && images.length > 0) {
-      cornerstone.enable(divRef.current);
-      cornerstone
-        .loadImage(images[currentIndex].imageId)
-        .then((image) => {
+    const loadAndDisplayImage = async () => {
+      if (divRef.current && images.length > 0) {
+        try {
+          if (!cornerstone.getEnabledElement(divRef.current)) {
+            cornerstone.enable(divRef.current);
+          }
+          const imageId = images[currentIndex];
+          const image = await cornerstone.loadImage(imageId);
           cornerstone.displayImage(divRef.current, image);
-        })
-        .catch((error) => {
-          console.error("Error loading image:", error);
-        });
-    }
-  }, [images, currentIndex]);
+        } catch (error) {
+          console.error("Error displaying image:", error);
+        }
+      }
+    };
 
-  function formatDateString(dateString) {
-    if (!dateString || dateString.length !== 8) return "";
-    const year = dateString.slice(0, 4);
-    const month = dateString.slice(4, 6);
-    const day = dateString.slice(6, 8);
-    return `${year}-${month}-${day}`;
-  }
+    loadAndDisplayImage();
+  }, [images, currentIndex]);
 
   const handleBack = () => {
     setFormData({
@@ -54,10 +50,18 @@ function ResultPage() {
     setScanResult(null);
     setImages([]);
     setDicomMetadata([]);
-    
     refreshScans();
     navigate("/home");
   };
+
+  const formatDateString = (dateString) => {
+    if (!dateString || dateString.length !== 8) return "";
+    return `${dateString.slice(0, 4)}-${dateString.slice(4, 6)}-${dateString.slice(6, 8)}`;
+  };
+
+  const currentResult = Array.isArray(scanResult)
+    ? scanResult[currentIndex]
+    : scanResult;
 
   return (
     <div className="min-h-screen bg-[#F4F7FA]">
@@ -68,7 +72,7 @@ function ResultPage() {
       <div className="px-5 pb-4">
         <div className="flex justify-center">
           <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Left Sidebar */}
+            {/* Patient Info */}
             <aside className="bg-white p-4 rounded shadow min-h-[calc(100vh-7rem)]">
               <h2 className="font-semibold mb-2">Patient Info</h2>
               <p>Name: {formData.name}</p>
@@ -77,21 +81,15 @@ function ResultPage() {
               <p>Clinical: {formData.clinical}</p>
               <p>Date: {formatDateString(formData.date)}</p>
             </aside>
-            {/* Main Content */}
+
+            {/* DICOM Viewer */}
             <main className="bg-gray-100 p-4 rounded shadow min-h-[calc(100vh-7rem)]">
               <h2 className="font-semibold mb-2">Image</h2>
               <div className="flex items-center justify-center gap-3">
                 {images.length > 1 && (
                   <button
                     disabled={currentIndex === 0}
-                    onClick={() => {
-                      const newIndex = currentIndex - 1;
-                      setCurrentIndex(newIndex);
-                      cornerstone.displayImage(
-                        divRef.current,
-                        images[newIndex]
-                      );
-                    }}
+                    onClick={() => setCurrentIndex((prev) => prev - 1)}
                     className="disabled:opacity-50"
                   >
                     <ChevronLeft size={24} />
@@ -101,14 +99,7 @@ function ResultPage() {
                 {images.length > 1 && (
                   <button
                     disabled={currentIndex === images.length - 1}
-                    onClick={() => {
-                      const newIndex = currentIndex + 1;
-                      setCurrentIndex(newIndex);
-                      cornerstone.displayImage(
-                        divRef.current,
-                        images[newIndex]
-                      );
-                    }}
+                    onClick={() => setCurrentIndex((prev) => prev + 1)}
                     className="disabled:opacity-50"
                   >
                     <ChevronRight size={24} />
@@ -116,20 +107,23 @@ function ResultPage() {
                 )}
               </div>
             </main>
-            {/* Right Sidebar */}
-           <aside className="bg-white p-4 rounded shadow min-h-[calc(100vh-7rem)]">
-  <h2 className="font-semibold mb-2">Result</h2>
-  {scanResult && typeof scanResult === 'object' && !Array.isArray(scanResult) && scanResult.prediction && (
-    <div>
-      <p className="break-words">
-        The prediction for the image scan is {scanResult.prediction}{" "}
-        with a confidence of{" "}
-        {Math.round(scanResult.confidence * 100).toFixed(2)}%. The
-        uncertainty is {scanResult.uncertainty.toFixed(5)}.
-      </p>
-    </div>
-  )}
-</aside>
+
+            {/* Scan Result */}
+            <aside className="bg-white p-4 rounded shadow min-h-[calc(100vh-7rem)]">
+              <h2 className="font-semibold mb-2">Result</h2>
+              {currentResult &&
+                typeof currentResult === "object" &&
+                currentResult.prediction && (
+                  <div>
+                    <p className="break-words">
+                      The prediction for the image scan is{" "}
+                      {currentResult.prediction} with a confidence of{" "}
+                      {Math.round(currentResult.confidence * 100).toFixed(2)}%. The
+                      uncertainty is {currentResult.uncertainty.toFixed(5)}.
+                    </p>
+                  </div>
+                )}
+            </aside>
           </div>
         </div>
       </div>
