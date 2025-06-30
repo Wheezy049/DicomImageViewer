@@ -11,6 +11,7 @@ export function ScanContextProvider({ children }) {
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [regularImages, setRegularImages] = useState([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -21,6 +22,7 @@ export function ScanContextProvider({ children }) {
     fullName: "",
     email: "",
     password: "",
+    threshold: 0.5,
   });
 
   // Initialize auth state and listen for changes
@@ -32,7 +34,6 @@ export function ScanContextProvider({ children }) {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -46,7 +47,6 @@ export function ScanContextProvider({ children }) {
 
   const isAuthenticated = !!session;
 
-  // Memoized function to fetch scans
   const fetchRecentScans = useCallback(async () => {
     if (!user?.id) {
       setScans([]);
@@ -65,8 +65,6 @@ export function ScanContextProvider({ children }) {
         console.error("Error fetching scans:", error.message);
         setScans([]);
       } else {
-        // console.log("Fetched scans:", data);
-
         // Process JSONB data - Supabase automatically parses JSONB fields,
         // but we need to ensure the scan.result field is properly handled
         const processedScans = data.map((scan, index) => {
@@ -90,7 +88,6 @@ export function ScanContextProvider({ children }) {
 
         setScans(processedScans);
 
-        // If scanning results exist, set the latest scan result
         if (processedScans.length > 0) {
           const latestScan = processedScans[processedScans.length - 1];
           setScanResult(latestScan.result);
@@ -104,12 +101,10 @@ export function ScanContextProvider({ children }) {
     }
   }, [user?.id]);
 
-  // Function to refresh scans (can be called from components)
   const refreshScans = useCallback(() => {
     fetchRecentScans();
   }, [fetchRecentScans]);
 
-  // Fetch scans when user changes
   useEffect(() => {
     fetchRecentScans();
   }, [fetchRecentScans]);
@@ -136,6 +131,8 @@ export function ScanContextProvider({ children }) {
         setFormData,
         refreshScans,
         fetchRecentScans,
+        regularImages,
+        setRegularImages,
       }}
     >
       {children}

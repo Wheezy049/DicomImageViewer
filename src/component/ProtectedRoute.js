@@ -19,12 +19,10 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  // If not authenticated, redirect to signin with the current location
   if (!user) {
     return <Navigate to="/signin" state={{ from: location }} replace />;
   }
 
-  // If authenticated, render the protected component
   return children;
 };
 

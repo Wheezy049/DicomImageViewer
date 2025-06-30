@@ -68,7 +68,6 @@ function Navbar() {
       >
         <div className="max-w-[1200px] mx-auto flex justify-between items-center">
           <Link to="/" >
-           {/* <img src="/image/logo.png" alt="Logo" className="w-10 h-10" /> */}
             <h1 className="text-4xl font-semibold cursor-pointer">EZCXR</h1>
           </Link>
 
@@ -90,7 +89,6 @@ function Navbar() {
     >
       <div className="max-w-[1200px] mx-auto flex justify-between items-center">
         <Link to="/" >
-          {/* <img src="/image/logo.png" alt="Logo" className="w-10 h-10" /> */}
           <h1 className="text-4xl font-semibold cursor-pointer">EZCXR</h1>
         </Link>
 

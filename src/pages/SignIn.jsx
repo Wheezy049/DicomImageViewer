@@ -43,7 +43,7 @@ function SignIn() {
           password: "",
         });
 
-        const from = location.state?.from?.pathname || "/home";
+        const from = "/home";
         navigate(from, { replace: true });
       }
     } catch (error) {

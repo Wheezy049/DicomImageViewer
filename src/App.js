@@ -15,7 +15,6 @@ function App() {
     <ScanContextProvider>
       <div className="App">
         <Routes>
-          {/* Root path - redirect to protected home */}
           <Route 
             path="/" 
             element={
@@ -25,7 +24,6 @@ function App() {
             } 
           />
           
-          {/* Public routes */}
           <Route
             path="/signin"
             element={
@@ -43,7 +41,6 @@ function App() {
             }
           />
           
-          {/* Protected routes */}
           <Route
             path="/home"
             element={

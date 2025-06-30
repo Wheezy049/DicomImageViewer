@@ -29,7 +29,6 @@ function PatientForm({ setIsPopup }) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [regularImages, setRegularImages] = useState([]);
   const [isDicomImage, setIsDicomImage] = useState(false);
   const navigate = useNavigate();
 
@@ -42,6 +41,8 @@ function PatientForm({ setIsPopup }) {
     formData,
     setFormData,
     setScanResult,
+    regularImages,
+    setRegularImages,
   } = useScanContext();
 
   const [disabledFields, setDisabledFields] = useState({
@@ -49,13 +50,15 @@ function PatientForm({ setIsPopup }) {
     age: false,
     clinical: false,
     date: false,
+    threshold: false,
   });
+
+  const [showThresholdWarning, setShowThresholdWarning] = useState(false);
 
   const divRef = useRef(null);
   const inputRef = useRef(null);
 
   const prepareDicomFiles = async (files) => {
-
     const metadataList = [];
     const imageIds = [];
 
@@ -67,7 +70,6 @@ function PatientForm({ setIsPopup }) {
       try {
         const imageId =
           cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
-        console.log("🆔 Generated imageId:", imageId);
         imageIds.push(imageId);
 
         const arrayBuffer = await file.arrayBuffer();
@@ -99,6 +101,7 @@ function PatientForm({ setIsPopup }) {
           age: metadata.patientAge !== "N/A",
           clinical: metadata.modality !== "N/A",
           date: metadata.studyDate !== "N/A",
+          threshold: false, 
         });
       } catch (error) {
         console.error("❌ DICOM file processing failed:", file.name, error);
@@ -107,33 +110,21 @@ function PatientForm({ setIsPopup }) {
     }
 
     if (imageIds.length > 0) {
-      // Set the state to show DICOM preview
       setImages(imageIds);
       setDicomMetadata(metadataList);
       setIsDicomImage(true);
       setIsImageLoaded(true);
       setCurrentIndex(0);
       setShowImagePreview(true);
-
     }
   };
 
-  // 2. Then, load and display the DICOM image after div is rendered
   useEffect(() => {
     const displayDicomImage = async () => {
-      console.log("useEffect triggered with:", {
-        isDicomImage,
-        imagesLength: images.length,
-        currentIndex,
-        divRefCurrent: !!divRef.current,
-        showImagePreview,
-      });
 
-      // Wait a bit for the div to be fully rendered
       if (isDicomImage && images.length > 0 && divRef.current) {
         try {
           const imageId = images[currentIndex];
-          // Ensure element is enabled
           let enabledElement;
           try {
             enabledElement = cornerstone.getEnabledElement(divRef.current);
@@ -148,52 +139,46 @@ function PatientForm({ setIsPopup }) {
           toast.error("Error displaying DICOM image: " + error.message);
         }
       } else if (isDicomImage && images.length > 0 && !divRef.current) {
-
       }
     };
 
-    // Add a small delay to ensure div is fully rendered
     if (isDicomImage && showImagePreview) {
       setTimeout(displayDicomImage, 100);
     }
   }, [currentIndex, images, isDicomImage, showImagePreview]);
 
   const loadRegularImages = async (files) => {
-    const imageFiles = files.filter((file) => {
-      const ext = file.name.toLowerCase();
-      return (
-        ext.endsWith(".jpg") ||
-        ext.endsWith(".jpeg") ||
-        ext.endsWith(".png") ||
-        ext.endsWith(".gif") ||
-        ext.endsWith(".bmp") ||
-        ext.endsWith(".webp")
-      );
-    });
+  const imageFiles = files.filter((file) => {
+    const ext = file.name.toLowerCase();
+    return (
+      ext.endsWith(".jpg") ||
+      ext.endsWith(".jpeg") ||
+      ext.endsWith(".png") ||
+      ext.endsWith(".gif") ||
+      ext.endsWith(".bmp") ||
+      ext.endsWith(".webp")
+    );
+  });
 
-    if (imageFiles.length > 0) {
-            // Ensure all are File or Blob before setting
-      const validFiles = imageFiles.filter((f) => f instanceof Blob);
-      setRegularImages(validFiles);
-      setIsDicomImage(false);
-      setIsImageLoaded(true);
-      setCurrentIndex(0);
-    }
-  };
+  if (imageFiles.length > 0) {
+    const validFiles = imageFiles.filter((f) => f instanceof Blob);
+    setRegularImages(validFiles);
+    setIsDicomImage(false);
+    setIsImageLoaded(true);
+    setCurrentIndex(0);
+  }
+};
 
   const isSupportedFileType = (filename) => {
     const ext = filename.toLowerCase();
 
-    // DICOM files
     if (ext.endsWith(".dcm")) return "dicom";
 
-    // Image files
     if (ext.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) return "image";
 
     return null;
   };
 
-  // Enhanced extractFiles function with validation
   const extractFiles = async (files) => {
     const allExtractedFiles = [];
     const zipValidationResults = [];
@@ -201,25 +186,21 @@ function PatientForm({ setIsPopup }) {
     for (const file of files) {
       if (file.name.toLowerCase().endsWith(".zip")) {
         try {
-          // First, load and analyze the ZIP contents
           const zip = await JSZip.loadAsync(file);
           const zipContents = Object.keys(zip.files);
 
-          // Filter and categorize files in the ZIP
           const supportedFiles = [];
           const unsupportedFiles = [];
 
           for (const filename of zipContents) {
             const zipFile = zip.files[filename];
 
-            // Skip directories
             if (zipFile.dir) continue;
 
             const fileType = isSupportedFileType(filename);
             if (fileType) {
               supportedFiles.push({ filename, type: fileType });
             } else {
-              // Only add to unsupported if it's not a common system file
               if (
                 !filename.startsWith("__MACOSX/") &&
                 !filename.startsWith(".DS_Store") &&
@@ -243,7 +224,6 @@ function PatientForm({ setIsPopup }) {
             continue;
           }
 
-          // Show user what was found
           const dicomCount = supportedFiles.filter(
             (f) => f.type === "dicom"
           ).length;
@@ -263,7 +243,6 @@ function PatientForm({ setIsPopup }) {
 
           toast.info(message);
 
-          // Extract only the supported files
           for (const { filename, type } of supportedFiles) {
             try {
               const zipFile = zip.files[filename];
@@ -271,7 +250,6 @@ function PatientForm({ setIsPopup }) {
               const blob = new Blob([content]);
               const extractedFile = new File([blob], filename);
               allExtractedFiles.push(extractedFile);
-
             } catch (extractError) {
               console.error(
                 `  ❌ Failed to extract: ${filename}`,
@@ -298,7 +276,6 @@ function PatientForm({ setIsPopup }) {
           });
         }
       } else {
-        // Handle non-ZIP files
         const fileType = isSupportedFileType(file.name);
         if (fileType) {
           allExtractedFiles.push(file);
@@ -311,7 +288,6 @@ function PatientForm({ setIsPopup }) {
     return allExtractedFiles;
   };
 
-  // Enhanced file validation function that can be used before processing
   const validateFiles = async (files) => {
     const validation = {
       valid: [],
@@ -365,7 +341,6 @@ function PatientForm({ setIsPopup }) {
   };
 
   const clearAllData = () => {
-    // Clean up cornerstone element
     if (divRef.current && isDicomImage) {
       try {
         if (cornerstone.getEnabledElement(divRef.current)) {
@@ -376,12 +351,10 @@ function PatientForm({ setIsPopup }) {
       }
     }
 
-    // Reset file input
     if (inputRef.current) {
       inputRef.current.value = "";
     }
 
-    // Reset all state
     setIsImageLoaded(false);
     setShowImagePreview(false);
     setImages([]);
@@ -390,25 +363,25 @@ function PatientForm({ setIsPopup }) {
     setIsDicomImage(false);
     setIsDragging(false);
     setLoading(false);
+    setRegularImages([]);
 
-    // Reset form data to initial empty state
     setFormData({
       name: "",
       age: "",
       gender: "",
       clinical: "",
       date: "",
+      threshold: 0.5,
     });
 
-    // Reset form field disabled states
     setDisabledFields({
       name: false,
       age: false,
       clinical: false,
       date: false,
+      threshold: false,
     });
 
-    // Clear DICOM metadata
     setDicomMetadata([]);
   };
 
@@ -429,7 +402,6 @@ function PatientForm({ setIsPopup }) {
     try {
       setLoading(true);
 
-      // Validate files first
       const validation = await validateFiles(files);
 
       if (validation.totalSupported === 0) {
@@ -440,13 +412,11 @@ function PatientForm({ setIsPopup }) {
         return;
       }
 
-      // Show preview of what will be processed
       if (validation.invalid.length > 0) {
         const invalidNames = validation.invalid.map((f) => f.name).join(", ");
         toast.warning(`Skipping unsupported files: ${invalidNames}`);
       }
 
-      // Continue with extraction and processing
       const extractedFiles = await extractFiles(files);
 
       const dcmFiles = extractedFiles.filter((file) =>
@@ -485,17 +455,12 @@ function PatientForm({ setIsPopup }) {
     }
 
     try {
-      // Clear existing data before processing new files
       clearAllData();
 
-      // Show loading state
       setLoading(true);
 
-      // First, validate what we're dealing with
-      console.log("🔍 Validating dropped files...");
       const validation = await validateFiles(files);
 
-      // Show validation summary
       if (validation.totalSupported === 0) {
         toast.error(
           "No supported files found. Please drop DICOM (.dcm) files, images (jpg, png, etc.), or ZIP files containing them."
@@ -504,7 +469,6 @@ function PatientForm({ setIsPopup }) {
         return;
       }
 
-      // Show what we found
       let summary = `Found ${validation.totalSupported} supported file(s): `;
       if (validation.valid.length > 0) {
         const dicomCount = validation.valid.filter(
@@ -525,7 +489,6 @@ function PatientForm({ setIsPopup }) {
 
       toast.info(summary);
 
-      // Now extract and process the files
       const extractedFiles = await extractFiles(files);
 
       if (extractedFiles.length === 0) {
@@ -534,7 +497,6 @@ function PatientForm({ setIsPopup }) {
         return;
       }
 
-      // Categorize extracted files
       const dcmFiles = extractedFiles.filter((file) =>
         file.name.toLowerCase().endsWith(".dcm")
       );
@@ -544,13 +506,10 @@ function PatientForm({ setIsPopup }) {
         return ext.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/);
       });
 
-      // Process files based on type
       if (dcmFiles.length > 0) {
-        console.log(`🏥 Processing ${dcmFiles.length} DICOM files`);
         await prepareDicomFiles(dcmFiles);
         toast.success(`Successfully loaded ${dcmFiles.length} DICOM file(s)`);
       } else if (imageFiles.length > 0) {
-        console.log(`🖼️ Processing ${imageFiles.length} image files`);
         await loadRegularImages(imageFiles);
         setShowImagePreview(true);
         toast.success(`Successfully loaded ${imageFiles.length} image file(s)`);
@@ -563,7 +522,6 @@ function PatientForm({ setIsPopup }) {
     }
   };
 
-  // Also improve the drag handlers for better UX
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -582,8 +540,6 @@ function PatientForm({ setIsPopup }) {
     e.preventDefault();
     e.stopPropagation();
 
-    // Only set dragging to false if we're leaving the drop zone entirely
-    // This prevents flickering when dragging over child elements
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
@@ -599,6 +555,23 @@ function PatientForm({ setIsPopup }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === "threshold") {
+    const numValue = parseFloat(value);
+    if (numValue < 0 || numValue > 1) {
+      toast.warning("Threshold must be between 0 and 1");
+      return;
+    }
+     if (numValue !== 0.5 && !showThresholdWarning) {
+        toast.warning(
+          "You changed the threshold value. This may affect the scan results. Please proceed with caution."
+        );
+        setShowThresholdWarning(true);
+      }
+      if (numValue === 0.5 && showThresholdWarning) {
+        setShowThresholdWarning(false);
+        toast.dismiss();
+      }
+  }
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -639,8 +612,8 @@ function PatientForm({ setIsPopup }) {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 360000);
+      controller.abort("Upload Timeout");
+    }, 420000);
 
     try {
       const uploadedFilePaths = [];
@@ -660,11 +633,14 @@ function PatientForm({ setIsPopup }) {
         uploadedFilePaths.push({ name: file.name, path: storagePath });
       }
 
+      let threshold = formData.threshold;
+
       const formPayload = new FormData();
       extractedFiles.forEach((file) => {
-        formPayload.append("file", file);
+        formPayload.append("files", file);
+        formPayload.append("threshold", threshold);
       });
-      const response = await fetch(`${API_URL}/predict`, {
+      const response = await fetch(`${API_URL}/batch`, {
         method: "POST",
         body: formPayload,
         headers: {
@@ -688,7 +664,7 @@ function PatientForm({ setIsPopup }) {
 
       if (insertError) throw new Error("Failed to save scan record");
 
-      setScanResult(result);
+      setScanResult(Array.isArray(result) ? result : [result]);
       toast.dismiss("scan-progress");
       toast.success("Scan analysis completed successfully!");
       navigate("/result");
@@ -696,12 +672,14 @@ function PatientForm({ setIsPopup }) {
       clearTimeout(timeoutId);
       toast.dismiss("scan-progress");
       setScanResult(null);
-      console.error("Scan submission error:", error.message);
+      const errorMessage = error?.message || "Unknown Error"
+      console.error("Scan submission error:", errorMessage);
+
       if (error.name === "AbortError") {
         toast.error(
           "Scan analysis timed out after 6 minutes. Please try again."
         );
-      } else if (error.message.includes("Failed to fetch")) {
+      } else if (errorMessage.includes("Failed to fetch")) {
         toast.error(
           "Network error. Please check your connection and try again."
         );
@@ -713,7 +691,6 @@ function PatientForm({ setIsPopup }) {
     }
   };
 
-  // Navigation handlers for DICOM images
   const handlePreviousImage = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -733,10 +710,8 @@ function PatientForm({ setIsPopup }) {
       ? URL.createObjectURL(regularImages[currentIndex])
       : null;
 
-  // 5. Add cleanup useEffect
   useEffect(() => {
     return () => {
-      // Cleanup cornerstone element on unmount
       if (divRef.current && isDicomImage) {
         try {
           if (cornerstone.getEnabledElement(divRef.current)) {
@@ -832,6 +807,22 @@ function PatientForm({ setIsPopup }) {
               value={formatDateString(formData.date) || formData.date}
               onChange={handleInputChange}
               disabled={disabledFields.date}
+              className="w-full border rounded px-3 py-2 outline-none focus:ring focus:ring-blue-300"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="threshold" className="block text-sm mb-1">
+              Threshold
+            </label>
+            <input
+              type="number"
+              name="threshold"
+              min={0}
+              max={1}
+              step={0.01}
+              value={formData.threshold}
+              onChange={handleInputChange}
               className="w-full border rounded px-3 py-2 outline-none focus:ring focus:ring-blue-300"
             />
           </div>

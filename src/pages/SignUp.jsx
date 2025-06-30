@@ -35,14 +35,13 @@ function SignUp() {
         toast.error("Error signing up.", error.message);
         return;
       }
-      console.log("Sign up data:", data);
       setFormData({
         ...formData,
         fullName: "",
         email: "",
         password: "",
       })
-      toast.success(
+      toast.info(
         "Sign up successful! Please check your email for confirmation."
       );
     } catch (error) {
