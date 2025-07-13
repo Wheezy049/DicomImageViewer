@@ -119,6 +119,7 @@ function ResultPage() {
   
   const resultsArray = getResultsArray();
   const currentResult = resultsArray[currentIndex];
+  console.log(currentResult)
 
   const getCurrentImageData = () => {
     if (isDicomImage && images && images.length > 0) {
@@ -285,22 +286,10 @@ function ResultPage() {
               <h2 className="font-semibold mb-2">Result</h2>
               {currentResult && typeof currentResult === "object" ? (
                 <div>
-                  <p className="break-words">
-                    The prediction for the image scan is{" "}
-                    <strong>{currentResult.prediction ?? "N/A"}</strong> with a confidence of{" "}
-                    <strong>
-                      {currentResult.confidence != null
-                        ? `${Math.round(currentResult.confidence * 100)}%`
-                        : "N/A"}
-                    </strong>
-                    . The uncertainty is{" "}
-                    <strong>
-                      {currentResult.uncertainty != null
-                        ? currentResult.uncertainty.toFixed(5)
-                        : "N/A"}
-                    </strong>
-                    .
+                  <p className="mb-2">
+                    <strong>{currentResult.prediction ?? "N/A"}</strong>.
                   </p>
+                  <p>File Name: <strong>{currentResult.image ?? "N/A"}</strong></p>
                 </div>
               ) : (
                 <div>

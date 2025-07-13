@@ -6,6 +6,7 @@ import { useScanContext } from "../context/ScanContext";
 
 const DICOMViewer = () => {
   const [isPopup, setIsPopup] = useState(false);
+  const [multipleFormPopup, setMutipleFormPopup] = useState(false);
   const { loading } = useScanContext()
 
   if(loading){
@@ -24,13 +25,15 @@ const DICOMViewer = () => {
       <Navbar />
       <div className="pt-32 px-10 bg-[#F4F7FA] h-full pb-20">
         <div className="max-w-7xl mx-auto h-full w-full">
-          <div className="mb-10">
+          <div className="mb-10 flex gap-2 items-center">
             <button
               onClick={() => setIsPopup(true)}
               className="text-white p-4 rounded-[6px] border-none outline-none cursor-pointer bg-[#13ADC7] hover:bg-[#0E95AC]"
             >
               Upload New Image
             </button>
+            
+            <button className="text-white p-4 rounded-[6px] border-none outline-none cursor-pointer bg-[#13ADC7] hover:bg-[#0E95AC]">Upload Mutiple Image</button>
             {isPopup && <PatientForm setIsPopup={setIsPopup} />}
           </div>
           {!loading && <RecentPatient />}
