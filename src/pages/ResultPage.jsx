@@ -21,6 +21,7 @@ function ResultPage() {
     refreshScans,
     images,
     regularImages,
+    
   } = useScanContext();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDicomImage, setIsDicomImage] = useState(false);

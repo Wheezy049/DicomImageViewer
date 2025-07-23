@@ -33,7 +33,6 @@ const DICOMViewer = () => {
               Upload New Image
             </button>
             
-            <button className="text-white p-4 rounded-[6px] border-none outline-none cursor-pointer bg-[#13ADC7] hover:bg-[#0E95AC]">Upload Mutiple Image</button>
             {isPopup && <PatientForm setIsPopup={setIsPopup} />}
           </div>
           {!loading && <RecentPatient />}

@@ -315,9 +315,9 @@ function RecentPatient() {
                   <button
                     onClick={handlePrev}
                     disabled={currentPage === 1}
-                    className="disabled:opacity-50"
+                    className="disabled:opacity-50 "
                   >
-                    <ChevronLeft />
+                    <ChevronLeft  className="text-black"/>
                   </button>
 
                   <span className="text-sm text-gray-700">
@@ -329,7 +329,7 @@ function RecentPatient() {
                     disabled={currentPage === totalPages}
                     className="disabled:opacity-50"
                   >
-                    <ChevronRight />
+                    <ChevronRight className="text-black" />
                   </button>
                 </div>
               )}
